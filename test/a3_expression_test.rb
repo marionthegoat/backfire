@@ -1,7 +1,7 @@
 require File.dirname(__FILE__) + '/test_helper.rb'
 require 'backfire'
 
-class A0ExpressionTest < Test::Unit::TestCase
+class A3ExpressionTest < Test::Unit::TestCase
 
 include Backfire::Model
 

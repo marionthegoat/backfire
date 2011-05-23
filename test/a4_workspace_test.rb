@@ -1,5 +1,5 @@
 require File.dirname(__FILE__) + '/test_helper.rb'
-class A0WorkspaceTest < Test::Unit::TestCase
+class A4WorkspaceTest < Test::Unit::TestCase
 
   include Backfire::Model
   include Backfire::Exceptions
