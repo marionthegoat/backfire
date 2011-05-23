@@ -1,0 +1,95 @@
+Backfire
+========
+
+What :  Backfire is a simple back-chaining rule base which can be plugged into any Ruby or Rails environment to provide configurable logic. It is intended for application to deterministic problems where the logic is volatile, arbitrary, subject to variance in implementation, or is just plain flakey.  Because it's back-chain driven, it is performant and does not consider irrelevant facts.
+
+Why :
+
+o I had immediate use cases that needed solving.
+o My brief survey of existing solutions revealed that they were mostly based on forward-chaining, and used file-based rule persistence.  I was not confident in my ability to knock holes in them to satisfy my needs.  This was a case where being lazy meant doing something myself so I could understand it clearly.
+o I wanted the ability to persist rules in any manner of my choosing ( specifically, the database ).
+o I wanted back-chaining, as it is efficient, is something I can actually understand, and could validate the results of.
+o I thought it would be fun and educational.
+
+Implementation :
+
+Backfire is initially being implemented as a plugin, it may be packaged as a gem later.  The plugin requires host tables to store rules and queries, the column names are configurable if need be to avoid conflict.   When employed, the Backfire engine creates a workspace instance and accepts instances of objects as facts which constitute the initial premise.  Then the engine is called to determine the value of a goal fact.  The engine can be called to determine as many different goal facts as needed for a given set of premise data.
+
+The Backfire engine works using the process of back-chaining.  It begins by evaluating those rules which directly yield a value for the goal fact. It works through each recursively, evaluating the assertion expression and searching for other rules which yield values which are inputs to the assertion expression. This recursion constitutes the back-chaining behavior.   The approach has the advantage of being relatively efficient and it does not seek facts which are not pertinent to the current premise.
+
+In addition to back-chaining,  Backfire incorporates iterative behavior so that as long as new facts are being discovered it will continue to attempt to determine the goal fact value.   This is useful where the desired goal fact is a list or where synergies exist between rules. The components of Backfire are discussed in more detail in the following sections.
+
+Expressions
+
+A fundamental building block of Backfire is the expression.  An expression is a Ruby-language construct which, when (optionally) combined with known fact values can yield a new value.
+Expressions are used in the following ways :
+
+o	In queries, to allow Backfire to find or calculate values  for facts
+o	In rule assertions, these expressions yield boolean values
+o	In rule predicates ( a convenience alternative to employing a query to construct the result fact)
+
+Substitution tokens are used in expressions to represent named facts in the workspace as arguments.  Backfire will parse these tokens and track the facts required to evaluate the expression.  When these values are fully known the expression can then be evaluated.  Expressions can  be a literal value, a reference to a fact, they can involve ORM navigation from a given ActiveRecord class instance, or they can even be native SQL queries.
+
+
+Rules
+
+Rules are the 'intelligent' component in Backfire, they embody the business logic to be applied to the problem.  A rule consists of an assertion expression,  a result fact, and a predicate expression.  A rule has three states :  true, false, indeterminate.  The initial state of a rule is always indeterminate, and  the rule is a candidate for evaluation as long as its state remains so.   When a rule's assertion expression is resolved,  the rule's state becomes the boolean result of the expression and is considered to have 'fired'.  At this point Backfire will attempt to resolve the predicate expression.  If successful, the result fact received the resolved
+value of the expression.   Otherwise, the predicate expression is converted into a query and added to the workspace for potential re-evaluation. Fired rules are excluded from further processing.
+
+Queries
+
+Queries are used to find or calculate fact values.  A query simply consists of an expression and a fact which receives the value of the expression when it resolves.  A query can be thought of as a rule without an assertion expression.   A query has two states --  indeterminate and true (resolved).  Like rules,  a query is initially
+indeterminate, and becomes true when its expression resolves to a value. 
+
+Facts
+
+Facts are named entities which are tracked in the workspace. They serve as an object container for a fact value, and track the origin of the fact.   A fact's value can be any valid object “ nil, an atomic value, a class instance, a collection, etc.  Like queries, facts have two states -- indeterminate and true (value determined).  Similarly, facts are initially indeterminate, and become true when they receive a value.
+Facts are used as arguments in expressions to yield new facts or the truth of a rule.
+
+FactLists
+
+FactLists are lists which contain facts.  Factlists are treated as facts themselves, and are distiguished in use by their plural names.  Factlists serve two purposes: 1) provide a convenient way to apply a rule across many facts, 2) provide a simple means of fact abstraction.  By mere membership, facts are abstracted to the level of meaning implied by the list they belong to.  FactLists may obtain their facts from rules, queries, or other FactLists. In order to preserve traceability, we generate new fact containers when adding existing facts to a FactList. The value remains the same, the new fact keeps track of what caused it to be added to the FactList.
+
+Workspace
+
+The workspace is the context for a given Backfire session.  It embodies all rules, queries, and facts associated with a given session.   A workspace has three states : new, live, and dead.  A workspace is considered to be new when the rule engine has not yet been applied to it.  It is considered to be live as long as the engine
+is able to yield new facts.  It becomes dead when the engine can no longer determine new facts from the available facts, rules, and queries. A dead workspace can become live again if new facts are introduced into it from outside or a different goal fact is requested from the engine. A workspace can be interrogated for fact values in any state.
+
+Rule Engine
+
+The rule engine is the heart of Backfire and implements the logic necessary to determine fact values.  The rule engine owns the workspace, and provides the method for
+requesting goal fact values.  Once called, the rule engine will set the workspace state to live and apply the rules and queries in back-chain fashion until either the
+goal fact value is determined, or no further values for any facts can be determined, at which point the workspace state becomes dead.
+
+Usage
+
+A Backfire session is initiated by creating a workspace, populating the workspace with rules and queries, and populating the workspace with initial facts.
+Once this is in place, the rule engine attached to the workspace can be executed to obtain goal facts.  Typical use is to instantiate a new Backfire session for each transaction it is used in.  However, there might be cases where it is desirable to have a session which spans multiple transactions, it just depends on the application.
+
+Explaining Behavior
+
+Rule engines are capable of complex behavior.  They are limited by the rules that govern them.  They are by their nature difficult to test or validate.  It becomes important for the rule base to be able to explain the reasoning behind a given outcome.  Thus, it should be able to provide the supporting rules and facts which contribute to a given goal fact value.  It should also be able to identify conflicting rules.  For cases where no result is found, the workspace itself must be examinable to allow the analyst to determine why no result was obtained.  The rule engine should be able to log the supporting info for these cases.  In addition, a means of succinctly recording the rules contributing to a given result should be implemented to allow some level of analysis after the fact. 
+
+Design Conventions
+
+The workspace is responsible for stitching together expressions, rules, queries, and facts as they are introduced into it.  Facts come in simply as fact name, it's up to the workspace to instantiate and assign fact objects to the other objects which need them.
+
+
+
+Example
+=======
+
+Example goes here.
+
+
+
+Usage Notes :
+
+If you have before_save method defined in a class that implements acts_as_backfire_query or acts_as_backfire_rule, you must call super.  This invokes the expression 'sandbox' checking to make sure no destructive commands are introduced in the expression. 
+
+Planned enhancements : 
+
+o convert non-rails components to gem, with additional gem to provide Rails plugin behaviors
+o add support for factlist evaluation to aid pattern matching, population distribution, and member relationships 
+
+Copyright (c) 2010 L. Knechtel, released under the MIT license
