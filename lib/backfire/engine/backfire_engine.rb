@@ -16,20 +16,23 @@ module Backfire
         # first-cut, no class fact arguments
         expr_string = determinant.expression.expression.clone
         determinant.expression.facts.each do |fact|
-          puts "ERROR : MISSING FACT #{fact}, workspace not loaded correctly." if @workspace.facts[fact.to_sym].nil?
-          #    value=nil
-          solve_sub(fact, level+1) if @workspace.facts[fact.to_sym].is_indeterminate?
-          indeterminate = true if @workspace.facts[fact.to_sym].is_indeterminate?
-          puts "unable to resolve value for #{fact}" if indeterminate
-          #        puts "fact value = #{@workspace.facts[fact.to_sym].value}" unless indeterminate
-          expr_string = expr_string.sub("@#{fact}", "\"@workspace.facts[\"#{fact}\".to_sym]\"") if value.class == String
-          expr_string = expr_string.sub("@#{fact}", "@workspace.facts[\"#{fact}\".to_sym]") unless value.class == String
+          if Fact.is_atomic?(fact)
+           puts "ERROR : MISSING FACT #{fact}, workspace not loaded correctly." if @workspace.facts[fact.to_sym].nil?
+           #    value=nil
+           solve_sub(fact, level+1) if @workspace.facts[fact.to_sym].is_indeterminate?
+           indeterminate = true if @workspace.facts[fact.to_sym].is_indeterminate?
+           puts "unable to resolve value for #{fact}" if indeterminate
+           #        puts "fact value = #{@workspace.facts[fact.to_sym].value}" unless indeterminate
+           expr_string = expr_string.sub("@#{fact}", "\"@workspace.facts[\"#{fact}\".to_sym]\"") if value.class == String
+           expr_string = expr_string.sub("@#{fact}", "@workspace.facts[\"#{fact}\".to_sym]") unless value.class == String
+          end
         end
         #    puts "Evaluation of rule predicate #{expr_string}" if is_predicate
         return false if indeterminate
-        determinant.expression.factlists.each do |list|
+        # deal with fact lists separately
+        determinant.expression.facts.each do |list|
           #      puts "Greedy fact list solve for #{list} level #{level+1}"
-          solve_sub(list,level+1) unless @workspace.factlists[list.to_sym].state == FactList::STATE_TRUE
+          solve_sub(list,level+1) unless Fact.is_atomic?(list) || @workspace.facts[list.to_sym].state == Fact::STATE_TRUE
         end unless is_predicate
         evaluate_single(determinant, expr_string, level) unless determinant.expression_has_factlist? && is_predicate==false
         evaluate_factlists(determinant, expr_string, level) if determinant.expression_has_factlist? unless is_predicate
@@ -37,11 +40,12 @@ module Backfire
       end
 
       def solve(goal)
+#        puts "[BackfireEngine] solve goal = #{goal}"
         last_x=nil
         for i in 0..20  #temporary protection against runaway
           x=solve_sub(goal)
           last_x = x unless x.nil?
-          puts "Solve discovery = #{@discovery} last_x = #{last_x}"
+#          puts "Solve discovery = #{@discovery} last_x = #{last_x}"
           return last_x if @discovery == false
         end
         return nil
@@ -52,28 +56,29 @@ module Backfire
         @discovery=false if level == 0 # initialize discovery tracking variable
         # fire unconditional rules first
         fire_unconditional_rules if level == 0
-        goal_fact = @workspace.facts[goal.to_sym] if Fact.is_atomic?(goal)
-        goal_fact = @workspace.factlists[goal.to_sym] if Fact.is_list?(goal)
+        goal_fact = @workspace.facts[goal.to_sym]
         puts "ERROR : unknown goal fact #{goal}, exiting solve_sub" if goal_fact.nil?
         return nil if goal_fact.nil?
-        #    puts "solve_sub goal_fact = #{goal_fact.name} value = #{goal_fact.value} state = #{goal_fact.state}" unless goal_fact.is_list?
-        return goal_fact if goal_fact.state == Fact::STATE_TRUE unless goal_fact.is_list? # this prevents facts from being re-determined by lower-priority rules
+ #       puts "solve_sub goal_fact = #{goal_fact.name} value = #{goal_fact.value} state = #{goal_fact.state}" unless goal_fact.is_list?
+ #       puts "goal_fact = #{goal_fact} state = #{goal_fact.state}"
+        return goal_fact if goal_fact.state == Fact::STATE_TRUE unless goal_fact.instance_of?(FactList)  # this prevents facts from being re-determined by lower-priority rules
         # Action here is different for list
-        return goal_fact unless goal_fact.is_list? || goal_fact.state == Fact::STATE_INDETERMINATE
+        return goal_fact unless goal_fact.instance_of?(FactList) || goal_fact.state == Fact::STATE_INDETERMINATE
+  #      puts "evaluating determinants for #{goal_fact.name} goal_fact.determinants=#{goal_fact.determinants}"
         goal_fact.determinants.each do |det|
-          #       puts "** SOLVE GOAL SEEK determinant = #{det.name} state = #{det.state}"
+  #        puts "** SOLVE GOAL SEEK determinant = #{det.name} state = #{det.state}"
           if det.state == Determinant::STATE_INDETERMINATE
-            #         puts "Evaluating #{det.name} type = #{det.class}"
+ #                    puts "Evaluating #{det.name} type = #{det.class}"
             result = evaluate(det, level+1)
             #         puts("result = #{result} state = #{det.state} fact = #{det.fact}")
             #          puts "[BackfireEngine.solve_sub] det.class = #{det.class}"
             if result && det.class == Query
               # should have the value in fact, need to do all completion stuff
-              return goal_fact unless (@discovery && goal_fact.is_list?)
+              return goal_fact unless (@discovery && goal_fact.instance_of?(FactList))
             end
             #         puts "It's a rule ..." if det.class == Rule
             if result && det.class == Rule && det.state == Determinant::STATE_TRUE
-              return goal_fact unless (@discovery && goal_fact.is_list?)
+              return goal_fact unless (@discovery && goal_fact.instance_of?(FactList))
             end
           end
           @workspace.state = Workspace::STATE_DEAD if level == 0 unless @discovery
@@ -100,7 +105,7 @@ module Backfire
       end
 
       def evaluate_single(determinant, expr_string, level, fact_instances=nil)
-        #    puts "evaluate, expression string = #{expr_string}"
+#        puts "evaluate, expression string = #{expr_string}"
         determinant.expression.resolved_expr=expr_string
         begin
           result = eval expr_string
@@ -146,25 +151,30 @@ module Backfire
         first=true
         if determinant.expression.factlists.length == 1
           # boundary case -- can't do cartesian product on single array
-          product_array = single_product(@workspace.factlists[determinant.expression.factlists[0].to_sym].members)
+          product_array = single_product(@workspace.facts[determinant.expression.factlists[0].to_sym].members)
         else
           determinant.expression.factlists.each do |list|
-            #      puts "evaluate_factlists adding #{list} to product"
-            product_array= @workspace.factlists[list.to_sym].members if first
-            product_array=BackfireEngine.product(product_array, @workspace.factlists[list.to_sym].members) unless first
+#            puts "evaluate_factlists adding #{list} to product"
+            product_array= @workspace.facts[list.to_sym].members if first
+            product_array=BackfireEngine.product(product_array, @workspace.facts[list.to_sym].members) unless first
             first=false
           end
         end
         product_array.each do |p|
-          #      puts "Product row = #{p}"
+#               puts "Product row = #{p}"
           expr = expr_string
           fact_instances=Hash.new #
           for i in 0..determinant.expression.factlists.length-1 do
             factlist=determinant.expression.factlists[i]
-            expr = expr.gsub("@"+@workspace.factlists[factlist.to_sym].name, "@workspace.facts[\"#{p[i].name}\".to_sym]")
+
+#            puts "workspace factlist #{factlist} fact #{p[i].name} = #{@workspace.facts[p[i].name.to_sym]}"
+
+            ## HERE IS THE SHORT CIRCUIT !!!
+
+            expr = expr.gsub("@"+@workspace.facts[factlist.to_sym].name, "@workspace.facts[\"#{p[i].name}\".to_sym]")
             fact_instances[factlist.to_sym]=p[i]
           end
-          #      puts "evaluate_factlists expr = #{expr}"
+#          puts "evaluate_factlists expr = #{expr}"
           evaluate_single(determinant, expr, level, fact_instances)
         end
       end

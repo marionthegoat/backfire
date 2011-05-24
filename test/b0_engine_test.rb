@@ -5,7 +5,7 @@ class B0EngineTest < Test::Unit::TestCase
   include Backfire::Model
   include Backfire::Engine
 
-  def test_cartesian_product
+  def test1_cartesian_product
     # Exercises home-cooked cartesian product
     x=[1,3,4,7,8,11]
     y=["frog", "snail", "beetle"]
@@ -18,7 +18,7 @@ class B0EngineTest < Test::Unit::TestCase
     assert_equal [4, "frog", "blue"], b[27]
   end
 
-  def test_factlist_eval
+  def test2_factlist_eval
     # Exercises basic FactList evaluation, predicate reference, and aggregation as receiver
     puts " "
     p=ControlParam.new("test",ControlParam::BACKCHAIN_ONLY,20,ControlParam::OPTION_YES)
@@ -35,13 +35,13 @@ class B0EngineTest < Test::Unit::TestCase
     f10 = Fact.new("food3", "insects", "initial load")
     l1 = FactList.new("Animals")
     l1.add_member(f1, f2, f3)
-    workspace.add_factlist(l1)
+    workspace.add_fact(l1)
     l2=FactList.new("Habitats")
     l2.add_member(f4, f5, f6, f7)
-    workspace.add_factlist(l2)
+    workspace.add_fact(l2)
     l3=FactList.new("Foods")
     l3.add_member(f8, f9, f10)
-    workspace.add_factlist(l3)
+    workspace.add_fact(l3)
     r1=Rule.new("RULE1", Expression.parse("@Animals.value == \"frog\" && @Habitats.value.nil? == false"), "I_like", Expression.parse("@Animals.value + \"s in the \" + @Habitats.value"))
     r2 =Rule.new("RULE2", Expression.parse("@Animals.value == \"beetle\""), "I_like", Expression.parse("@Animals"))
     r3=Rule.new("RULE3", Expression.parse("@Animals.value.nil? == false && @Foods.value == \"insects\""), "I_like", Expression.parse("@Animals.value + \"s that eat \" + @Foods.value"))
@@ -62,7 +62,7 @@ class B0EngineTest < Test::Unit::TestCase
     workspace.dump
   end
 
-  def test_dependent_lists
+  def test3_dependent_lists
     puts""
     puts"WHODUNIT Test :"
     puts""
@@ -93,7 +93,7 @@ class B0EngineTest < Test::Unit::TestCase
       l2.add_member(f6, f7, f8, f9, f10)
       p=ControlParam.new("test",ControlParam::BACKCHAIN_ONLY,20,ControlParam::OPTION_YES)
       workspace = Workspace.new(p)
-      workspace.add_factlist(l1,l2)
+      workspace.add_fact(l1,l2)
       f9=Fact.new("suspect_age_high", 40, "initial_load")
       f10=Fact.new("suspect_age_low", 30, "initial_load")
       f11=Fact.new("suspect_gender", "M", "initial_load")
@@ -112,15 +112,15 @@ class B0EngineTest < Test::Unit::TestCase
           puts "Result #{result.name} = #{m.value.name} : #{m.value}"
         end
       end
-      assert_equal "Igor", result.members[0].value.name
+      assert_equal  "Igor", result.members[0].value.name
       result=workspace.engine.solve("Suspected_weapons")
       unless result.nil?
         result.members.each do |m|
           puts "Result #{result.name} = #{m.value.name} : #{m.value}"
         end
       end
-      workspace.dump
       assert_equal "razor", result.members[0].value.name
+      workspace.dump
   end
 
 end

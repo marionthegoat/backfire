@@ -26,8 +26,8 @@ class A4WorkspaceTest < Test::Unit::TestCase
     l1.add_member(f1)
     l2=FactList.new("List2")
     l2.add_member(f2)
-    w1.add_factlist(l1,l2)
-    assert_equal 2, w1.factlists.size
+    w1.add_fact(l1,l2)
+    assert_equal 4, w1.facts.size
   end
 
   def test_add_query
@@ -41,16 +41,10 @@ class A4WorkspaceTest < Test::Unit::TestCase
      assert_not_nil w1.facts["fact1".to_sym]
      assert_not_nil w1.facts["fact2".to_sym]
      assert_not_nil w1.facts["fact3".to_sym]
-     assert_not_nil w1.factlists["Factlist4".to_sym]
+     assert_not_nil w1.facts["Factlist4".to_sym]
      #see that determinant is correctly stitched into result fact
-     l1=w1.factlists["Factlist4".to_sym]
+     l1=w1.facts["Factlist4".to_sym]
      assert_equal true, l1.determinants.include?(q1)
   end
-
-
-
-
-
-
 
 end

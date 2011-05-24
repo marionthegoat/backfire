@@ -1,23 +1,27 @@
 module Backfire
   module Model
-    class FactList
+    class FactList < Fact
 
       include Backfire::Exceptions
- 
+
+      #
+      # FactList is a collection of facts which serves as a proxy that applies all its members
+      # wherever the FactList is referenced.  In use it is similar to a Fact and is implemented
+      # as a subclass of Fact
+      #
+      # FactLists are currently distinguished in expressions, etc by name starting with an uppercase letter
+      #
       # Nomenclature :
       #
       #  expressions -- list of expressions this factlist appears in ( enables dirty on discovery )
       #  determinants -- list of determinants in which this factlist is the receiver
       #
-      STATE_INDETERMINATE = "indeterminate"
-      STATE_TRUE = "true"
-      attr_reader :name, :members
-      attr_accessor :expressions, :determinants, :state
+
+      attr_reader :members, :expressions, :determinants
       def initialize (name)
-        self.name=name
-        @expressions=[]
+        super(name)
+        self.name=name # validation
         @members=[]
-        @determinants=[]
         @state=STATE_INDETERMINATE
       end
 
@@ -25,21 +29,13 @@ module Backfire
         raise BackfireException,"Factlist name #{name} must start with uppercase character." if name[0,1] == name[0,1].downcase
         @name=name
       end
+
       def is_list?
         return true
       end
 
       def is_atomic?
         return false
-      end
-
-      def add_determinant(det)
-        @determinants << det unless @determinants.include? det
-      end
-
-      def add_expression(expr)
-        raise BackfireException,"[FactList.add_expression] Error : cannot add #{expr} as expression, does not respond to dirty." unless expr.respond_to? "dirty"
-        @expressions << expr unless @expressions.include? expr
       end
 
       def add_member(*facts)
@@ -57,7 +53,7 @@ module Backfire
 
       # propogate dirtyness through dependent expressions
       def dirty
-        expressions.each do |e|
+        @expressions.each do |e|
           e.dirty
         end
       end

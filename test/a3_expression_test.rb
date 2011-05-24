@@ -22,9 +22,9 @@ include Backfire::Model
 
   def test_expression_factlists
     expr4=Expression.parse("@Birds.value.name < @fact2.value || @Acorns.value != @fact3.value")
-    assert_equal 2, expr4.factlists.length
-    assert_equal "Birds", expr4.factlists[0]
-    assert_equal "Acorns", expr4.factlists[1]
+    assert_equal 4, expr4.facts.length
+    assert_equal true, expr4.facts.include?("Birds")
+    assert_equal true, expr4.facts.include?("Acorns")
   end
 
   def test_expression_association

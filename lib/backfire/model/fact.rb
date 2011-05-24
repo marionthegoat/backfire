@@ -5,6 +5,8 @@ module Backfire
     #  Represents a known fact in the rule base
     #  Origin is a reference to the query or rule which established the value for the fact
     #
+    #  Facts are currently distinguised from FactLists in expressions, etc. by name starting with lowercase letter.
+    #
     #  Nomenclature :
 
     #  value -- domain value for this fact.  Can be any type
@@ -16,10 +18,10 @@ module Backfire
 
     class Fact
 
-      include Backfire::Exceptions
-
-      STATE_INDETERMINATE = "indeterminate"
       STATE_TRUE = "true"
+      STATE_INDETERMINATE = "indeterminate"
+      
+      include Backfire::Exceptions
 
       attr_reader :value, :name, :state, :expressions, :determinants
       attr_accessor :origin, :immutable, :factlists
@@ -57,14 +59,6 @@ module Backfire
         return true
       end
 
-      def add_expression(expr)
-        @expressions << expr unless @expressions.include? expr
-      end
-
-      def add_determinant(assn)
-        @determinants << assn unless @determinants.include? assn
-      end
-
       def value=(val)
         # sets state to true when value is determined
         raise BackfireException, "ERROR : Attempt to change value of immutable fact #{@name} from #{@value} to #{val}" if @immutable
@@ -76,9 +70,20 @@ module Backfire
         return @state==STATE_INDETERMINATE
       end
 
+      def add_determinant(det)
+ #       puts "adding determinant #{det.name} for #{@name} #{self}"
+        @determinants << det unless @determinants.include? det
+ #       puts "determinates.size = #{@determinants.size}"
+      end
+
+      def add_expression(expr)
+        raise BackfireException,"[FactList.add_expression] Error : cannot add #{expr} as expression, does not respond to dirty." unless expr.respond_to? "dirty"
+        @expressions << expr unless @expressions.include? expr
+      end
+      
       # propogate dirtyness through dependent expressions and factlists
       def dirty
-        expressions.each do |e|
+        @expressions.each do |e|
           e.dirty
         end
         factlists.each do |f|

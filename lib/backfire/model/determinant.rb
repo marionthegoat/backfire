@@ -36,11 +36,14 @@ module Backfire
       end
   
       def expression_has_factlist?
-        return @expression.factlists.length > 0
+        @expression.facts.each do |fact|
+           return true if Fact.is_list?(fact)
+        end
+        return false
       end
   
       def receiver_is_factlist?
-        return true if fact.instance_of? FactList
+        return true if @fact.instance_of? FactList
         return false
       end
 
