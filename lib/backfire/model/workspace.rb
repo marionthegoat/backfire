@@ -147,7 +147,7 @@ module Backfire
         puts ""
         puts"WHY backtrace for #{fact} = #{@facts[fact.to_sym].value}  : "
         self.facts[fact.to_sym].determinants.each do |det|
-          det.why(1) #unless det.state == Determinant::STATE_INDETERMINATE
+          det.why(1) 
         end
         puts ""
       end
