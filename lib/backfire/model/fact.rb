@@ -24,7 +24,7 @@ module Backfire
       include Backfire::Exceptions
 
       attr_reader :value, :name, :state, :expressions, :determinants
-      attr_accessor :origin, :immutable, :factlists
+      attr_accessor :origin, :immutable, :factlists, :workspace
 
       def initialize( name, value=nil, origin=nil)
         self.name=name
@@ -36,6 +36,7 @@ module Backfire
         @state=STATE_INDETERMINATE if value.nil?
         @state=STATE_TRUE unless value.nil?
         @immutable = false
+        @workspace = nil
       end
 
       def name=(name)

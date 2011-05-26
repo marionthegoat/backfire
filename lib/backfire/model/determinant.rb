@@ -8,7 +8,7 @@ module Backfire
       STATE_TRUE = "true"
       STATE_FALSE = "false"
 
-      attr_accessor :name, :expression, :fact,  :state
+      attr_accessor :name, :expression, :fact,  :state, :workspace
 
       def initialize(name, expression,  fact=nil)
         @name=name  # hash key in workspace
@@ -16,9 +16,10 @@ module Backfire
         @expression.host = self
         @fact=fact  # Fact or factlist class instance
         @state=STATE_INDETERMINATE
+        @workspace=nil
       end
 
-      def why(workspace,level)
+      def why(level)
         indent=""
         for i in 1..level do
           indent +=". "
@@ -26,13 +27,9 @@ module Backfire
         because="WHY : #{indent} #{self.class.name} #{self.name}".ljust(40)+" state= #{self.state}".ljust(15)+
           " resolved to : #{@expression.resolved_expr}".ljust(40)+
           " premise facts :"
-        @expression.facts.each do |f|
-          because +="#{f} = #{workspace.facts[f.to_sym].value} "
-        end
+        @expression.list_facts(@workspace, because)
         puts because
-        @expression.facts.each do |f|
-          workspace.facts[f.to_sym].why(workspace, level+1)
-        end
+        @expression.why(@workspace, level)
       end
   
       def expression_has_factlist?

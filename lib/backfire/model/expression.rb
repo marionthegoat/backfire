@@ -55,6 +55,20 @@ module Backfire
         @host.dirty unless @host.nil?
       end
 
+      def list_facts(workspace,instr="")
+        outstr = instr;
+        @facts.each do |f|
+          outstr +="#{f} = #{workspace.facts[f.to_sym].value} "
+        end
+        return outstr
+      end
+
+      def why (workspace, level)
+        @facts.each do |f|
+          workspace.facts[f.to_sym].why(workspace, level+1)
+        end
+      end
+
       def dump(level)
         output=[]
         indent=""
