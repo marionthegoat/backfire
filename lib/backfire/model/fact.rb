@@ -71,6 +71,10 @@ module Backfire
         return @state==STATE_INDETERMINATE
       end
 
+      def is_true?
+        return @state==STATE_TRUE
+      end
+
       def add_determinant(det)
  #       puts "adding determinant #{det.name} for #{@name} #{self}"
         @determinants << det unless @determinants.include? det

@@ -19,6 +19,18 @@ module Backfire
         @workspace=nil
       end
 
+      def is_false?
+        return @state == STATE_FALSE
+      end
+
+      def is_true?
+        return @state == STATE_TRUE
+      end
+
+      def is_indeterminate?
+        return @state == STATE_INDETERMINATE
+      end
+
       def why(level)
         indent=""
         for i in 1..level do
@@ -31,7 +43,9 @@ module Backfire
         puts because
         @expression.why(@workspace, level)
       end
-  
+
+
+
       def expression_has_factlist?
         @expression.facts.each do |fact|
            return true if Fact.is_list?(fact)

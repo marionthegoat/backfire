@@ -17,10 +17,10 @@ module Backfire
         expr_string = determinant.expression.expression.clone
         determinant.expression.facts.each do |fact|
           if Fact.is_atomic?(fact)
-           puts "ERROR : MISSING FACT #{fact}, workspace not loaded correctly." if @workspace.facts[fact.to_sym].nil?
+           puts "ERROR : MISSING FACT #{fact}, workspace not loaded correctly." if @workspace.get_fact(fact).nil?
            #    value=nil
-           solve_sub(fact, level+1) if @workspace.facts[fact.to_sym].is_indeterminate?
-           indeterminate = true if @workspace.facts[fact.to_sym].is_indeterminate?
+           solve_sub(fact, level+1) if @workspace.get_fact(fact).is_indeterminate?
+           indeterminate = true if @workspace.get_fact(fact).is_indeterminate?
            puts "unable to resolve value for #{fact}" if indeterminate
            #        puts "fact value = #{@workspace.facts[fact.to_sym].value}" unless indeterminate
            expr_string = expr_string.sub("@#{fact}", "\"@workspace.facts[\"#{fact}\".to_sym]\"") if value.class == String
@@ -30,9 +30,9 @@ module Backfire
         #    puts "Evaluation of rule predicate #{expr_string}" if is_predicate
         return false if indeterminate
         # deal with fact lists separately
-        determinant.expression.facts.each do |list|
+        determinant.expression.factlists.each do |list|
           #      puts "Greedy fact list solve for #{list} level #{level+1}"
-          solve_sub(list,level+1) unless Fact.is_atomic?(list) || @workspace.facts[list.to_sym].state == Fact::STATE_TRUE
+          solve_sub(list,level+1) unless @workspace.get_fact(list).is_true?
         end unless is_predicate
         evaluate_single(determinant, expr_string, level) unless determinant.expression_has_factlist? && is_predicate==false
         evaluate_factlists(determinant, expr_string, level) if determinant.expression_has_factlist? unless is_predicate
@@ -42,6 +42,7 @@ module Backfire
       def solve(goal)
 #        puts "[BackfireEngine] solve goal = #{goal}"
         last_x=nil
+        fire_unconditional_rules
         for i in 0..20  #temporary protection against runaway
           x=solve_sub(goal)
           last_x = x unless x.nil?
@@ -55,35 +56,27 @@ module Backfire
         # convention : goal fact name is used here
         @discovery=false if level == 0 # initialize discovery tracking variable
         # fire unconditional rules first
-        fire_unconditional_rules if level == 0
-        goal_fact = @workspace.facts[goal.to_sym]
+        goal_fact = @workspace.get_fact(goal)
         puts "ERROR : unknown goal fact #{goal}, exiting solve_sub" if goal_fact.nil?
         return nil if goal_fact.nil?
  #       puts "solve_sub goal_fact = #{goal_fact.name} value = #{goal_fact.value} state = #{goal_fact.state}" unless goal_fact.is_list?
  #       puts "goal_fact = #{goal_fact} state = #{goal_fact.state}"
-        return goal_fact if goal_fact.state == Fact::STATE_TRUE unless goal_fact.instance_of?(FactList)  # this prevents facts from being re-determined by lower-priority rules
+        return goal_fact if goal_fact.is_true? unless goal_fact.instance_of?(FactList)  # this prevents facts from being re-determined by lower-priority rules
         # Action here is different for list
-        return goal_fact unless goal_fact.instance_of?(FactList) || goal_fact.state == Fact::STATE_INDETERMINATE
+        return goal_fact unless goal_fact.instance_of?(FactList) || goal_fact.is_indeterminate?
   #      puts "evaluating determinants for #{goal_fact.name} goal_fact.determinants=#{goal_fact.determinants}"
         goal_fact.determinants.each do |det|
   #        puts "** SOLVE GOAL SEEK determinant = #{det.name} state = #{det.state}"
-          if det.state == Determinant::STATE_INDETERMINATE
+          if det.is_indeterminate?
  #                    puts "Evaluating #{det.name} type = #{det.class}"
             result = evaluate(det, level+1)
             #         puts("result = #{result} state = #{det.state} fact = #{det.fact}")
             #          puts "[BackfireEngine.solve_sub] det.class = #{det.class}"
-            if result && det.class == Query
-              # should have the value in fact, need to do all completion stuff
-              return goal_fact unless (@discovery && goal_fact.instance_of?(FactList))
-            end
-            #         puts "It's a rule ..." if det.class == Rule
-            if result && det.class == Rule && det.state == Determinant::STATE_TRUE
-              return goal_fact unless (@discovery && goal_fact.instance_of?(FactList))
-            end
+            return goal_fact if (det.is_true? && result) unless (@discovery && goal_fact.instance_of?(FactList))
           end
           @workspace.state = Workspace::STATE_DEAD if level == 0 unless @discovery
           # break out if nothing discovered
-          if @workspace.state == Workspace::STATE_DEAD
+          if @workspace.is_dead?
             return goal_fact
           end
         end
@@ -94,7 +87,7 @@ module Backfire
       def fire_unconditional_rules
         @workspace.unconditional_rules.each do |u|
           ufact=nil
-          if u.state == Determinant::STATE_INDETERMINATE
+          if u.is_indeterminate?
             #        puts "evaluating unconditional rule #{u.name}"
             u.state = Determinant::STATE_TRUE
             ufact=u.fact.name unless u.fact.nil?
@@ -166,11 +159,6 @@ module Backfire
           fact_instances=Hash.new #
           for i in 0..determinant.expression.factlists.length-1 do
             factlist=determinant.expression.factlists[i]
-
-#            puts "workspace factlist #{factlist} fact #{p[i].name} = #{@workspace.facts[p[i].name.to_sym]}"
-
-            ## HERE IS THE SHORT CIRCUIT !!!
-
             expr = expr.gsub("@"+@workspace.facts[factlist.to_sym].name, "@workspace.facts[\"#{p[i].name}\".to_sym]")
             fact_instances[factlist.to_sym]=p[i]
           end
@@ -180,7 +168,7 @@ module Backfire
       end
 
       def evaluate_predicate(rule, level, fact_instances)
-        if rule.state == Rule::STATE_TRUE
+        if rule.is_true?
           # Rule fired true, attempt to resolve fact value expression
           #        puts "evaluate_predicate before fact_instances expr=#{rule.predicate.expression} instances = #{fact_instances}"
           pred=Query.new(rule.name+" Predicate", Expression.parse(rule.predicate.expression), rule.fact.name)

@@ -28,6 +28,18 @@ module Backfire
         @control_params=params
       end
 
+      def is_dead?
+        return @state == STATE_DEAD
+      end
+
+      def is_live?
+        return @state == STATE_LIVE
+      end
+
+      def is_new?
+        return @state == STATE_NEW
+      end
+
       def add_fact(*fact)
         return if fact.empty?
         first, *rest = fact
