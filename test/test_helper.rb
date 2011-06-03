@@ -1,7 +1,6 @@
 gem 'test-unit' # LJK had to add this so that RubyMine would find it
 require 'test/unit'
 
-
 # classes for testing lists
 
 class Person
