@@ -1,4 +1,4 @@
-require File.dirname(__FILE__) + '/test_helper.rb'
+require_relative  'test_helper.rb'
 
 class B0EngineTest < Test::Unit::TestCase
 

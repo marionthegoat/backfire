@@ -1,5 +1,6 @@
-require File.dirname(__FILE__) + '/test_helper.rb'
-require 'backfire'
+puts File.dirname(__FILE__) + '/test_helper.rb'
+require_relative  'test_helper.rb'
+require_relative '../lib/backfire'
 
 class A0ControlParamTest < Test::Unit::TestCase
   include Backfire::Model

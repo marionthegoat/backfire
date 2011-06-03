@@ -1,4 +1,5 @@
-require File.dirname(__FILE__) + '/test_helper.rb'
+require_relative  'test_helper.rb'
+require_relative '../lib/backfire'
 class A4WorkspaceTest < Test::Unit::TestCase
 
   include Backfire::Model
@@ -11,8 +12,8 @@ class A4WorkspaceTest < Test::Unit::TestCase
   end
 
   def test_protect
-    assert_raise (BackfireException) {w2 = Workspace.new(nil)}
-    assert_raise (BackfireException) {w2 = Workspace.new("parameters")}
+    assert_raise(BackfireException) { w2 = Workspace.new(nil) }
+    assert_raise(BackfireException) { w2 = Workspace.new("parameters") }
   end
 
   def test_add
