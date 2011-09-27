@@ -23,8 +23,8 @@ module Backfire
            indeterminate = true if @workspace.get_fact(fact).is_indeterminate?
            puts "unable to resolve value for #{fact}" if indeterminate
            #        puts "fact value = #{@workspace.facts[fact.to_sym].value}" unless indeterminate
-           expr_string = expr_string.sub("@#{fact}", "\"@workspace.facts[\"#{fact}\".to_sym]\"") if value.class == String
-           expr_string = expr_string.sub("@#{fact}", "@workspace.facts[\"#{fact}\".to_sym]") unless value.class == String
+           expr_string = expr_string.gsub("@#{fact}", "\"@workspace.facts[\"#{fact}\".to_sym]\"") if value.class == String
+           expr_string = expr_string.gsub("@#{fact}", "@workspace.facts[\"#{fact}\".to_sym]") unless value.class == String
           end
         end
         #    puts "Evaluation of rule predicate #{expr_string}" if is_predicate

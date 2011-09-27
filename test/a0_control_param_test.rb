@@ -16,8 +16,8 @@ class A0ControlParamTest < Test::Unit::TestCase
   end
 
   def test_protection
-    assert_raise (BackfireException) {ControlParam.new("rulebase_parameters", 'Z', 20, ControlParam::OPTION_YES)}
-    assert_raise (BackfireException) {ControlParam.new("rulebase_parameters", ControlParam::BACKCHAIN_ONLY, 20, 'X')}
+    assert_raise(BackfireException) {ControlParam.new("rulebase_parameters", 'Z', 20, ControlParam::OPTION_YES)}
+    assert_raise(BackfireException) {ControlParam.new("rulebase_parameters", ControlParam::BACKCHAIN_ONLY, 20, 'X')}
   end
 
 end
