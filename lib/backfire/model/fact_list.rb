@@ -17,16 +17,17 @@ module Backfire
       #  determinants -- list of determinants in which this factlist is the receiver
       #
 
-      attr_reader :members, :expressions, :determinants
-      def initialize (name)
-        super(name)
-        self.name=name # validation
+      attr_reader :members
+      def initialize (name, values=[], origin=nil, workspace=nil)
         @members=[]
+        super(name, nil, origin, workspace)
         @state=STATE_INDETERMINATE
+        @child_seq=0 # for generating fact names dynamically where necessary
+        add_member(*values) unless values.nil? || values.empty?
       end
 
       def name=(name)
-        raise BackfireException,"Factlist name #{name} must start with uppercase character." if name[0,1] == name[0,1].downcase
+        raise BackfireException,"FactList name #{name} must start with uppercase character." if name[0,1] == name[0,1].downcase
         @name=name
       end
 
@@ -38,13 +39,21 @@ module Backfire
         return false
       end
 
+      def fact_values
+        vals=[]
+        members.each {|member| vals << member.value}
+        vals
+      end
+
       def add_member(*facts)
         return if facts.empty?
         first, *rest = facts
-        raise BackfireException, "ERROR: Attempt to add non-fact #{first} class #{first.class.name} to FactList #{@name}" unless first.instance_of? Fact
-        unless @members.include?(first)
-          @members << first
-          first.factlists << self
+#        raise BackfireException, "ERROR: Attempt to add non-fact #{first} class #{first.class.name} to FactList #{@name}" unless first.instance_of? Fact
+        unless @members.include?(first) || (first.instance_of?(Fact) && self.fact_values.include?(first.value)) || self.fact_values.include?(first)
+#          puts "[FactList] Adding member #{first.inspect} to values #{self.values.inspect}"
+          newfact = first.instance_of?(Fact) ? first : Fact.new(nil, first, self.name, self.workspace)
+          @members << newfact
+          newfact.factlists << self
         end
         @state = STATE_TRUE
         add_member(*rest)

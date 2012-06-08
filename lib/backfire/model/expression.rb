@@ -15,24 +15,17 @@ module Backfire
 
       def self.parse(expr)
         # find the fact names in the expression string
-        #    puts "Expression.parse expr = #{expr}"
         # factoid = full fact / method spec
         # factname = fact reference proper
         # facts are lowercase, factlists are titlecase
         workstring=expr.clone
         _facts=[]
-        done=false
-        while not done do
-          factref = workstring.slice(/[@].[\w@]+/) #isolates fact
-          if factref.nil?
-            done=true;
-          else
-            factoid = factref.slice(/\w+/) # removes ampersand
-            workstring.sub!(factref,"") # lop off what we just parsed
-            _facts << factoid unless _facts.include?(factoid)
-            done = true if workstring.nil? || workstring.length == 0
-          end
-        end
+        _terms=workstring.split("@")
+        _terms.each do |term|
+          factoid = term.slice(/\w+/)
+          _facts << factoid unless factoid.nil? || factoid.empty? || _facts.include?(factoid)
+        end if workstring.include?("@")
+ #       puts "Expresssion parse facts = #{_facts.inspect}"
         return Expression.new(expr, _facts)
       end
 
@@ -57,13 +50,15 @@ module Backfire
         return outstr
       end
 
+
+      # TODO : this really needs refactoring, should not reference workspace, etc
       def why (workspace, level)
         @facts.each do |f|
           workspace.facts[f.to_sym].why(workspace, level+1)
         end
       end
 
-      def dump(level)
+      def dump(level=0)
         output=[]
         indent=""
         for i in 1..level do
@@ -71,7 +66,7 @@ module Backfire
         end
         fstr=""
         @facts.each{ |f| fstr+=(" "+f)}
-        outstr = "DUMP #{indent}Expression = #{@expression} facts=#{fstr} }"
+        outstr = "DUMP #{indent}Expression = #{@expression} facts=#{fstr}"
         output << outstr
         return output
       end

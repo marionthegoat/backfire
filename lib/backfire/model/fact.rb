@@ -20,28 +20,35 @@ module Backfire
 
       STATE_TRUE = "true"
       STATE_INDETERMINATE = "indeterminate"
-      
+
       include Backfire::Exceptions
 
       attr_reader :value, :name, :state, :expressions, :determinants
       attr_accessor :origin, :immutable, :factlists, :workspace
 
-      def initialize( name, value=nil, origin=nil)
+# @param [String] name
+# @param [Object] value
+# @param [String] origin
+
+      def initialize(name, value=nil, origin=nil, workspace=nil)
+        @workspace = workspace
         self.name=name
         @value=value
         @origin=origin
         @expressions=[]
         @determinants=[]
         @factlists=[]
-        @state=STATE_INDETERMINATE if value.nil?
-        @state=STATE_TRUE unless value.nil?
+        @state=value.nil? ? STATE_INDETERMINATE : STATE_TRUE
         @immutable = false
-        @workspace = nil
+        @workspace = workspace
+        @workspace.add_fact(self) unless @workspace.nil?
       end
 
       def name=(name)
-        raise BackfireException,"Fact name #{name} must be lowercase" if name[0,1] == name[0,1].upcase
         @name=name
+        @name=workspace.gen_dynamic_fact_name if @name.nil? unless workspace.nil?
+        raise BackfireException, "Fact name is nil and no workspace has been provided to generate dynamic name." if @name.nil?
+        raise BackfireException,"Fact name #{@name} must be lowercase" if @name[0,1] == @name[0,1].upcase
       end
 
       def self.is_list?(name)
@@ -75,17 +82,19 @@ module Backfire
         return @state==STATE_TRUE
       end
 
+      # @param [Determinant] det
       def add_determinant(det)
  #       puts "adding determinant #{det.name} for #{@name} #{self}"
         @determinants << det unless @determinants.include? det
- #       puts "determinates.size = #{@determinants.size}"
+        det.fact = self unless det.fact
+ #       puts "determinants.size = #{@determinants.size}"
       end
 
       def add_expression(expr)
-        raise BackfireException,"[FactList.add_expression] Error : cannot add #{expr} as expression, does not respond to dirty." unless expr.respond_to? "dirty"
+        raise BackfireException,"[Fact.add_expression] Error : cannot add #{expr} as expression, does not respond to dirty." unless expr.respond_to? "dirty"
         @expressions << expr unless @expressions.include? expr
       end
-      
+
       # propogate dirtyness through dependent expressions and factlists
       def dirty
         @expressions.each do |e|

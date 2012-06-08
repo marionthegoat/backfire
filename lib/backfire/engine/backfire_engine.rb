@@ -42,7 +42,6 @@ module Backfire
       def solve(goal)
 #        puts "[BackfireEngine] solve goal = #{goal}"
         last_x=nil
-        fire_unconditional_rules
         for i in 0..20  #temporary protection against runaway
           x=solve_sub(goal)
           last_x = x unless x.nil?
@@ -55,7 +54,6 @@ module Backfire
       def solve_sub(goal, level=0)
         # convention : goal fact name is used here
         @discovery=false if level == 0 # initialize discovery tracking variable
-        # fire unconditional rules first
         goal_fact = @workspace.get_fact(goal)
         puts "ERROR : unknown goal fact #{goal}, exiting solve_sub" if goal_fact.nil?
         return nil if goal_fact.nil?
@@ -84,19 +82,6 @@ module Backfire
         return nil
       end
 
-      def fire_unconditional_rules
-        @workspace.unconditional_rules.each do |u|
-          ufact=nil
-          if u.is_indeterminate?
-            #        puts "evaluating unconditional rule #{u.name}"
-            u.state = Determinant::STATE_TRUE
-            ufact=u.fact.name unless u.fact.nil?
-            upred=Query.new(u.name+" Predicate", u.predicate, ufact)
-            evaluate(upred);
-          end
-        end
-      end
-
       def evaluate_single(determinant, expr_string, level, fact_instances=nil)
 #        puts "evaluate, expression string = #{expr_string}"
         determinant.expression.resolved_expr=expr_string
@@ -105,6 +90,7 @@ module Backfire
         rescue Exception => err
           puts "Eval failed, error = #{err}"
           @workspace.dump
+          puts "Statement in error = #{expr_string}"
           raise Backfire::Exceptions::BackfireException,err
         end
         if determinant.class == Rule
@@ -123,10 +109,10 @@ module Backfire
               determinant.fact.add_member(result) if result.class.name == "Fact"
               # wrap non-fact results in new fact instance (caveat emptor : rules won't be able to access except via the list)
               unless result.class.name == "Fact"
-                unless @workspace.dynamic_fact_exists?(result)
-                  determinant.fact.add_member(@workspace.create_dynamic_fact(result, determinant))
+             #   unless @workspace.dynamic_fact_exists?(result)
+                  determinant.fact.add_member(Fact.new(nil, result, determinant, @workspace)) # we're using longhand form because we want proper origin in there
                   @discovery = true
-                end
+           #     end
               end
             else
               @discovery = true

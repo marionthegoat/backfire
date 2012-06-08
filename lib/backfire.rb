@@ -1,4 +1,5 @@
 module Backfire
+puts "Running backfire module"
 require_relative 'backfire/exceptions/backfire_exception'
 require_relative 'backfire/utils/sandbox'
 require_relative 'backfire/model/control_param'

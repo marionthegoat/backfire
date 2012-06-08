@@ -8,15 +8,17 @@ module Backfire
       STATE_TRUE = "true"
       STATE_FALSE = "false"
 
-      attr_accessor :name, :expression, :fact,  :state, :workspace
+      attr_accessor :name, :expression, :fact, :fact_name, :state, :workspace
 
-      def initialize(name, expression,  fact=nil)
+      def initialize(name, expression, fact_name, fact=nil, workspace=nil)
         @name=name  # hash key in workspace
-        @expression=expression  # Expression class instance
+        @expression=expression.instance_of?(Expression) ? expression : Expression.parse(expression)  # Expression class instance or string to be parsed as one
         @expression.host = self
+        @fact_name = fact_name
         @fact=fact  # Fact or factlist class instance
         @state=STATE_INDETERMINATE
-        @workspace=nil
+        @workspace=workspace
+        @workspace.add_determinant(self) unless workspace.nil?
       end
 
       def is_false?

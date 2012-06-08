@@ -9,8 +9,10 @@ module Backfire
       STATE_LIVE = "live"
       STATE_DEAD = "dead"
 
-      attr_accessor :facts, :factlists, :determinants, :queries, :rules, :unconditional_rules, :engine, :state
+      attr_accessor :facts, :factlists, :determinants, :queries, :rules, :engine, :state
+      attr_reader :control_params
 
+      # @param [ControlParam] params
       def initialize(params)
         raise BackfireException,"[Workspace] Error : Missing control parameters" if params.nil?
         raise BackfireException,"[Workspace] Error : Invalid control parameter object" if !(params.instance_of?(ControlParam))
@@ -21,11 +23,14 @@ module Backfire
         @determinants=Hash.new
         @rules=Hash.new
         @queries=Hash.new
-        @dynamic_fact_values=Hash.new
+  #      @dynamic_fact_values=Hash.new
         @engine=Backfire::Engine::BackfireEngine.new(self)
         @state=STATE_NEW
-        @unconditional_rules=[]
         @control_params=params
+      end
+
+      def solve(goal)
+        self.engine.solve(goal)
       end
 
       def is_dead?
@@ -54,59 +59,58 @@ module Backfire
         return @facts[name.to_sym]
       end
 
+      # @param [Determinant] determinant
       def add_determinant(determinant)
          determinant.workspace = self
+         get_factoid(determinant.fact_name).add_determinant(determinant) # tell result fact about the new determinant
+         gen_facts_from_expression(determinant.expression) # we're cheating here by using expression instead of assertion for Rule case
+         gen_facts_from_expression(determinant.predicate) if  determinant.instance_of? Rule
          @determinants[determinant.name.to_sym]=determinant
-         @queries[determinant.name.to_sym]=determinant if determinant.instance_of? Query
+         @queries[determinant.name.to_sym]=determinant if determinant.instance_of? Query # TODO: Not sure why these are busted out
          @rules[determinant.name.to_sym]=determinant if determinant.instance_of? Rule
          @state = STATE_LIVE if @state == STATE_DEAD
       end
 
       # this factors the difference between fact and factlist
       def get_factoid(name)
-          return get_fact(name) unless get_fact(name).nil?
+          factoid=get_fact(name)
+          return factoid unless factoid.nil?
           factoid=Fact.new(name) if Fact.is_atomic?(name)
           factoid=FactList.new(name) unless Fact.is_atomic?(name)
           add_fact(factoid)
-          return factoid
+          factoid
       end
 
 
-      def dynamic_fact_exists?(value)
-        return !(@dynamic_fact_values[value].nil?)
-      end
+      #def dynamic_fact_exists?(value)
+      #  !(@dynamic_fact_values[value].nil?)
+      #end
 
-      def gen_dynamic_fact_name(value)
+      def gen_dynamic_fact_name(value=nil)
         @factseq+=1
         seq=@factseq.to_s
         return value.name + "_" + seq if value.instance_of? Fact
-        return name="dynamic" + "_" + seq
+        "dynamic" + "_" + seq
       end
 
       def scrub_fact_value(value)
         return value.value if value.instance_of? Fact
-        return value
+        value
       end
 
-      def create_dynamic_fact(value, determinant)
-#        puts "create_dynamic_fact value = #{value}"
-        existing=@dynamic_fact_values[value]  #TODO: this seems questionable... May want to always generate new fact containers
-        return existing unless existing.nil?
-        name = gen_dynamic_fact_name(value)
-        newval = scrub_fact_value(value)
-        fact=Fact.new(name, newval, determinant.name)
-        fact.add_determinant(determinant)
-        add_fact(fact)
-        @dynamic_fact_values[value]=fact
-        return fact
-      end
+#      def create_dynamic_fact(value, determinant)
+##        puts "create_dynamic_fact value = #{value}"
+#        existing=@dynamic_fact_values[value]  #TODO: this seems questionable... May want to always generate new fact containers
+#        return existing unless existing.nil?
+#        name = gen_dynamic_fact_name(value)
+#        newval = scrub_fact_value(value)
+#        fact=Fact.new(name, newval, determinant.name)
+#        fact.add_determinant(determinant)
+#        add_fact(fact)
+#        @dynamic_fact_values[value]=fact
+#        return fact
+#      end
 
-      def create_result_fact(name, determinant)
-        return nil if name.nil?
-        result_fact=get_factoid(name)
-        result_fact.add_determinant(determinant)
-        determinant.fact=result_fact
-      end
 
  # we stitch facts and expressions together when expressions are introduced into the workspace
       def gen_facts_from_expression(expression)
@@ -116,42 +120,17 @@ module Backfire
           end
       end
 
-
-      def load_rules(rule_class, conditions=nil)
-        # load directly from database
-        conditions=:all if conditions.nil?
-        instances=rule_class.constantize.send("find", conditions)
-        instances.each do |rule|
-          add_rule(rule.rule_instance)
-        end
-      end
-
-      def load_queries(query_class, conditions=nil)
-        #load directly from database
-        conditions=:all if conditions.nil?
-        instances=query_class.constantize.send("find", conditions)
-        instances.each do |query|
-          add_query(query.query_instance)
-        end
-      end
-
       def add_query(*queries)
         return if queries.empty?
         query, *rest = queries
         add_determinant(query)
-        gen_facts_from_expression(query.expression)
-        create_result_fact(query.fact_name, query)
         add_query(*rest)
       end
 
       def add_rule(*rules)
         return if rules.empty?
         rule, *rest = rules
-        @unconditional_rules << rule if rule.assertion.expression == Rule::UNCONDITIONAL
         add_determinant(rule)
-        gen_facts_from_expression(rule.assertion)
-        gen_facts_from_expression(rule.predicate)
-        create_result_fact(rule.fact_name, rule)
         add_rule(*rest)
       end
 
@@ -159,7 +138,7 @@ module Backfire
         puts ""
         puts"WHY backtrace for #{fact} = #{@facts[fact.to_sym].value}  : "
         self.facts[fact.to_sym].determinants.each do |det|
-          det.why(1) 
+          det.why(1)
         end
         puts ""
       end
