@@ -16,6 +16,7 @@ describe Fact do
     f1.must_respond_to :factlists
     f1.must_respond_to :workspace
   end
+
   it "acquires values from constructor" do
     f1 = Fact.new "test_fact", 18, "Initial Load"
     f1.name.must_equal "test_fact"
