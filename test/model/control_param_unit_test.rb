@@ -33,11 +33,11 @@ describe ControlParam do
   end
 
   it "has output logging option" do
-    control_param.log_output.must_equal ControlParam::OPTION_YES
+    control_param.log_output.must_equal true
   end
 
   it "rejects invalid backchain option" do
-    -> {ControlParam.new("rulebase_parameters", ControlParam::OPTION_YES)}.must_raise BackfireException
+    -> {ControlParam.new("rulebase_parameters", 'X')}.must_raise BackfireException
   end
 
   it "rejects invalid runaway limit" do

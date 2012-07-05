@@ -19,6 +19,7 @@ describe Workspace do
     w1.must_respond_to :engine
     w1.must_respond_to :state
     w1.must_respond_to :control_params
+    w1.must_respond_to :current_query
   end
 
   it "accepts control parameters in constructor" do

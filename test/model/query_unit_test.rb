@@ -10,28 +10,32 @@ include Backfire::Exceptions
 # We use Query to test all the basic capabilities of Determinant
 #
 describe Query do
-
-  q1 = Query.new("PlazJohnson", "saxophone","instrument")
+  before do
+    @q1 = Query.new("PlazJohnson", "saxophone","instrument")
+  end
 
   it "supports these attributes" do
-    q1.must_respond_to :name
-    q1.must_respond_to :expression
-    q1.must_respond_to :fact
-    q1.must_respond_to :fact_name
-    q1.must_respond_to :state
-    q1.must_respond_to :workspace
+    @q1.must_respond_to :name
+    @q1.must_respond_to :expression
+    @q1.must_respond_to :fact
+    @q1.must_respond_to :fact_name
+    @q1.must_respond_to :state
+    @q1.must_respond_to :workspace
+    @q1.must_respond_to :prompt
   end
 
   it "acquires target fact from constructor" do
-    q1.fact_name.must_equal "instrument"
+    @q1.fact_name.must_equal "instrument"
   end
 
   it "aquires query name from constructor" do
-    q1.name.must_equal "PlazJohnson"
+    @q1.name.must_equal "PlazJohnson"
   end
 
   it "can parse expression from string supplied in constructor"  do
-    q1.expression.must_be_instance_of Expression
+    @q1.expression.must_be_instance_of Expression
   end
+
+
 
 end

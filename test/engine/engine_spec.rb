@@ -33,6 +33,28 @@ describe BackfireEngine do
     goal.value.must_equal 49
   end
 
+  it "interrupts execution when prompt query is encountered" do
+    c1=ControlParam.new "rulebase_parameters"
+    w1 = Workspace.new(c1)
+    w1.add_rule(Rule.new("scales", "@cat_has_on_mouth.value == 'feathers'", "cat_ate", "'bird'"))
+    w1.add_rule(Rule.new("feathers", "@cat_has_on_mouth.value == 'scales'", "cat_ate", "'fish''"))
+    w1.add_rule(Rule.new("fur", "@cat_has_on_mouth.value == 'fur'", "cat_ate", "'mouse''"))
+    w1.add_query(Query.new("mittens", "'Mittens'", "cat"))
+    w1.add_query(Query.new("evidence_prompt", "What does the cat @cat have around its mouth?", "cat_has_on_mouth", true))  # this is a prompt query
+    goal=w1.solve("cat_ate")
+    goal.wont_be_nil
+    goal.must_equal BackfireEngine::PROMPT
+    w1.current_query.wont_be_nil
+    w1.current_query.name.must_equal "evidence_prompt"
+    w1.current_query.expression.resolved_expr.must_equal "What does the cat Mittens have around its mouth?"
+    w1.prompt_response = "feathers"
+    goal=w1.solve("cat_ate")
+    goal.wont_be_nil
+    goal.must_be_instance_of Fact
+    goal.value.must_equal "bird"
+    w1.dump
+  end
+
   it "handles combinatorial interaction of factlists when evaluating expressions" do
     p=ControlParam.new "test"
     workspace = Workspace.new(p)
@@ -87,11 +109,6 @@ describe BackfireEngine do
     r2 =Rule.new("RULE2", Expression.parse("@Animals.value == \"beetle\""), "I_like", Expression.parse("@Animals.value"), workspace)
     r3=Rule.new("RULE3", Expression.parse("@Animals.value.nil? == false && @Foods.value == \"insects\""), "I_like", Expression.parse("@Animals.value + \"s that eat \" + @Foods.value"), workspace)
     result = workspace.engine.solve("I_like")
-    #    puts "Result = #{result.values.inspect}" unless result.nil?
-    #    workspace.why(m.name)
-    #  end
-    #end
-    #    workspace.dump
     result.wont_be_nil
     result.members.size.must_equal 7
     result.fact_values.must_include "beetle"
@@ -151,7 +168,7 @@ describe BackfireEngine do
       end
     end
     result.fact_values[0].name.must_equal "razor"
-    workspace.dump
+ #   workspace.dump
   end
 
 end

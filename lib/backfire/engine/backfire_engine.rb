@@ -1,6 +1,7 @@
 module Backfire
   module Engine
     class BackfireEngine
+      PROMPT = "prompt"
 
       include Backfire::Model
       include Backfire::Exceptions
@@ -17,26 +18,37 @@ module Backfire
         expr_string = determinant.expression.expression.clone
         determinant.expression.facts.each do |fact|
           if Fact.is_atomic?(fact)
-           puts "ERROR : MISSING FACT #{fact}, workspace not loaded correctly." if @workspace.get_fact(fact).nil?
-           #    value=nil
-           solve_sub(fact, level+1) if @workspace.get_fact(fact).is_indeterminate?
-           indeterminate = true if @workspace.get_fact(fact).is_indeterminate?
-           puts "unable to resolve value for #{fact}" if indeterminate
-           #        puts "fact value = #{@workspace.facts[fact.to_sym].value}" unless indeterminate
-           expr_string = expr_string.gsub("@#{fact}", "\"@workspace.facts[\"#{fact}\".to_sym]\"") if value.class == String
-           expr_string = expr_string.gsub("@#{fact}", "@workspace.facts[\"#{fact}\".to_sym]") unless value.class == String
+            puts "ERROR : MISSING FACT #{fact}, workspace not loaded correctly." if @workspace.get_fact(fact).nil?
+            #    value=nil
+            value=solve_sub(fact, level+1) if @workspace.get_fact(fact).is_indeterminate?
+            return value if value == PROMPT
+            indeterminate = true if @workspace.get_fact(fact).is_indeterminate?
+            puts "unable to resolve value for #{fact}" if indeterminate
+            #        puts "fact value = #{@workspace.facts[fact.to_sym].value}" unless indeterminate
+            if determinant.is_a?(Query) && determinant.is_prompt?
+              expr_string = expr_string.gsub("@#{fact}", @workspace.facts[fact.to_sym].value.to_s)
+            else
+              expr_string = expr_string.gsub("@#{fact}", "\"@workspace.facts[\"#{fact}\".to_sym]\"") if value.is_a?(String)
+              expr_string = expr_string.gsub("@#{fact}", "@workspace.facts[\"#{fact}\".to_sym]") unless value.is_a?(String)
+            end
           end
+        end
+        if determinant.is_a?(Query) && determinant.is_prompt?
+          determinant.expression.resolved_expr=expr_string
+          @workspace.current_query = determinant
+          return PROMPT # token which terminates evaluation when input is required from user
         end
         #    puts "Evaluation of rule predicate #{expr_string}" if is_predicate
         return false if indeterminate
         # deal with fact lists separately
         determinant.expression.factlists.each do |list|
           #      puts "Greedy fact list solve for #{list} level #{level+1}"
-          solve_sub(list,level+1) unless @workspace.get_fact(list).is_true?
+          result = solve_sub(list,level+1) unless @workspace.get_fact(list).is_true?
+          return result if result == PROMPT
         end unless is_predicate
         evaluate_single(determinant, expr_string, level) unless determinant.expression_has_factlist? && is_predicate==false
         evaluate_factlists(determinant, expr_string, level) if determinant.expression_has_factlist? unless is_predicate
-        return true
+        true
       end
 
       def solve(goal)
@@ -45,6 +57,7 @@ module Backfire
         for i in 0..20  #temporary protection against runaway
           x=solve_sub(goal)
           last_x = x unless x.nil?
+#          puts "solve, goal_fact = #{goal} result = #{x}"
 #          puts "Solve discovery = #{@discovery} last_x = #{last_x}"
           return last_x if @discovery == false
         end
@@ -68,18 +81,19 @@ module Backfire
           if det.is_indeterminate?
  #                    puts "Evaluating #{det.name} type = #{det.class}"
             result = evaluate(det, level+1)
+            return result if result == PROMPT
             #         puts("result = #{result} state = #{det.state} fact = #{det.fact}")
             #          puts "[BackfireEngine.solve_sub] det.class = #{det.class}"
             return goal_fact if (det.is_true? && result) unless (@discovery && goal_fact.instance_of?(FactList))
           end
-          @workspace.state = Workspace::STATE_DEAD if level == 0 unless @discovery
-          # break out if nothing discovered
-          if @workspace.is_dead?
-            return goal_fact
-          end
         end
+        @workspace.state = Workspace::STATE_DEAD if level == 0 unless @discovery
+  # break out if nothing discovered
+ #       if @workspace.is_dead?
+          return goal_fact
+#       end
         # don't think we'll ever get here
-        return nil
+#        return nil
       end
 
       def evaluate_single(determinant, expr_string, level, fact_instances=nil)
@@ -109,17 +123,14 @@ module Backfire
               determinant.fact.add_member(result) if result.class.name == "Fact"
               # wrap non-fact results in new fact instance (caveat emptor : rules won't be able to access except via the list)
               unless result.class.name == "Fact"
-             #   unless @workspace.dynamic_fact_exists?(result)
                   determinant.fact.add_member(Fact.new(nil, result, determinant, @workspace)) # we're using longhand form because we want proper origin in there
-                  @discovery = true
-           #     end
               end
             else
-              @discovery = true
               determinant.fact.value = result
               determinant.fact.origin = determinant.name
-              determinant.state = Determinant::STATE_TRUE
             end
+            determinant.state = Determinant::STATE_TRUE
+            @discovery = true
           end
         end
       end

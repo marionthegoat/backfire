@@ -9,7 +9,7 @@ module Backfire
       STATE_LIVE = "live"
       STATE_DEAD = "dead"
 
-      attr_accessor :facts, :factlists, :determinants, :queries, :rules, :engine, :state
+      attr_accessor :facts, :factlists, :determinants, :queries, :rules, :engine, :state, :current_query
       attr_reader :control_params
 
       # @param [ControlParam] params
@@ -27,6 +27,7 @@ module Backfire
         @engine=Backfire::Engine::BackfireEngine.new(self)
         @state=STATE_NEW
         @control_params=params
+        @current_query=nil
       end
 
       def solve(goal)
@@ -81,6 +82,10 @@ module Backfire
           factoid
       end
 
+      def prompt_response=(value)
+        current_query.fact.value = value
+        @state = STATE_LIVE
+      end
 
       #def dynamic_fact_exists?(value)
       #  !(@dynamic_fact_values[value].nil?)
