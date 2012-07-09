@@ -83,8 +83,10 @@ module Backfire
       end
 
       def prompt_response=(value)
-        current_query.fact.value = value
+        #TODO : Think about validation, possible expressions, need for sandboxing
+        self.current_query.fact.value = value
         @state = STATE_LIVE
+        self.current_query = nil
       end
 
       #def dynamic_fact_exists?(value)

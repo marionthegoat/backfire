@@ -52,6 +52,7 @@ describe BackfireEngine do
     goal.wont_be_nil
     goal.must_be_instance_of Fact
     goal.value.must_equal "bird"
+    w1.current_query.must_be_nil
     w1.dump
   end
 
