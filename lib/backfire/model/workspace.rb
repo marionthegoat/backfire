@@ -8,8 +8,9 @@ module Backfire
       STATE_NEW = "new"
       STATE_LIVE = "live"
       STATE_DEAD = "dead"
+      STATE_ERROR = "error" #TODO : needs to be implemented for bad prompt input
 
-      attr_accessor :facts, :factlists, :determinants, :queries, :rules, :engine, :state, :current_query
+      attr_accessor :facts, :factlists, :determinants, :queries, :rules, :engine, :state, :current_query, :goal_fact
       attr_reader :control_params
 
       # @param [ControlParam] params
@@ -28,10 +29,12 @@ module Backfire
         @state=STATE_NEW
         @control_params=params
         @current_query=nil
+        @goal_fact=nil
       end
 
-      def solve(goal)
-        self.engine.solve(goal)
+      def solve(goal=nil)
+        @goal_fact = goal unless goal.nil?
+        self.engine.solve(@goal_fact)
       end
 
       def is_dead?
@@ -84,6 +87,7 @@ module Backfire
 
       def prompt_response=(value)
         #TODO : Think about validation, possible expressions, need for sandboxing
+        raise BackfireException, "ERROR: Received input when no prompt active." if self.current_query.nil?
         self.current_query.fact.value = value
         @state = STATE_LIVE
         self.current_query = nil
@@ -134,6 +138,7 @@ module Backfire
         add_query(*rest)
       end
 
+      # @param [Object] rules
       def add_rule(*rules)
         return if rules.empty?
         rule, *rest = rules

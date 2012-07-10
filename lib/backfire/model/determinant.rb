@@ -72,8 +72,7 @@ module Backfire
           indent +=". "
         end
         outstr = "DUMP #{indent}Determinant #{self.class.name} name: #{@name} fact: #{@fact.name} value : #{@fact.value}  state : #{@state}" unless @fact.is_list?
-        puts outstr
-        output << outstr
+        outstr.concat "  is_prompt? #{self.is_prompt?}" if self.is_a?(Query) unless @fact.is_list?
         outstr =  "DUMP #{indent}Determinant #{self.class.name} name: #{@name} fact: #{@fact.name} value : (FactList)  state : #{@state}" if @fact.is_list?
         puts outstr
         output << outstr
