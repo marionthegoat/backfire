@@ -20,6 +20,11 @@ describe Workspace do
     w1.must_respond_to :state
     w1.must_respond_to :control_params
     w1.must_respond_to :current_query
+    w1.must_respond_to :errors
+    w1.must_respond_to :is_new?
+    w1.must_respond_to :is_dead?
+    w1.must_respond_to :is_live?
+    w1.must_respond_to :is_awaiting_input?
   end
 
   it "accepts control parameters in constructor" do

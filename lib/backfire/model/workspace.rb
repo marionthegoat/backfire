@@ -7,29 +7,31 @@ module Backfire
 
       STATE_NEW = "new"
       STATE_LIVE = "live"
+      STATE_PROMPT = "prompt"
       STATE_DEAD = "dead"
       STATE_ERROR = "error" #TODO : needs to be implemented for bad prompt input
 
       attr_accessor :facts, :factlists, :determinants, :queries, :rules, :engine, :state, :current_query, :goal_fact
-      attr_reader :control_params
+      attr_reader :control_params, :errors
 
       # @param [ControlParam] params
       def initialize(params)
-        raise BackfireException,"[Workspace] Error : Missing control parameters" if params.nil?
-        raise BackfireException,"[Workspace] Error : Invalid control parameter object" if !(params.instance_of?(ControlParam))
-        @factseq=0
-        @facts=Hash.new
-        @factlists=Hash.new
-        @class_facts=Hash.new
-        @determinants=Hash.new
-        @rules=Hash.new
-        @queries=Hash.new
-  #      @dynamic_fact_values=Hash.new
-        @engine=Backfire::Engine::BackfireEngine.new(self)
-        @state=STATE_NEW
-        @control_params=params
-        @current_query=nil
-        @goal_fact=nil
+        raise BackfireException, "[Workspace] Error : Missing control parameters" if params.nil?
+        raise BackfireException, "[Workspace] Error : Invalid control parameter object" if !(params.instance_of?(ControlParam))
+        @factseq = 0
+        @facts = {}
+        @factlists = {}
+        @class_facts = Hash.new
+        @determinants = Hash.new
+        @rules = Hash.new
+        @queries = Hash.new
+        #      @dynamic_fact_values=Hash.new
+        @engine = Backfire::Engine::BackfireEngine.new(self)
+        @state = STATE_NEW
+        @control_params = params
+        @current_query = nil
+        @goal_fact = nil
+        @errors = []
       end
 
       def solve(goal=nil)
@@ -49,13 +51,17 @@ module Backfire
         return @state == STATE_NEW
       end
 
+      def is_awaiting_input?
+        return @state == STATE_PROMPT
+      end
+
       def add_fact(*fact)
         return if fact.empty?
         first, *rest = fact
         first.workspace = self
         @facts[first.name.to_sym]=first
         @state = STATE_LIVE if @state == STATE_DEAD
-        first.members.each {|f| add_fact(f) } if first.instance_of?(FactList)
+        first.members.each { |f| add_fact(f) } if first.instance_of?(FactList)
         add_fact(*rest)
       end
 
@@ -65,24 +71,28 @@ module Backfire
 
       # @param [Determinant] determinant
       def add_determinant(determinant)
-         determinant.workspace = self
-         get_factoid(determinant.fact_name).add_determinant(determinant) # tell result fact about the new determinant
-         gen_facts_from_expression(determinant.expression) # we're cheating here by using expression instead of assertion for Rule case
-         gen_facts_from_expression(determinant.predicate) if  determinant.instance_of? Rule
-         @determinants[determinant.name.to_sym]=determinant
-         @queries[determinant.name.to_sym]=determinant if determinant.instance_of? Query # TODO: Not sure why these are busted out
-         @rules[determinant.name.to_sym]=determinant if determinant.instance_of? Rule
-         @state = STATE_LIVE if @state == STATE_DEAD
+        determinant.workspace = self
+        get_factoid(determinant.fact_name).add_determinant(determinant) # tell result fact about the new determinant
+        gen_facts_from_expression(determinant.expression) # we're cheating here by using expression instead of assertion for Rule case
+        gen_facts_from_expression(determinant.predicate) if  determinant.instance_of? Rule
+        @determinants[determinant.name.to_sym]=determinant
+        @queries[determinant.name.to_sym]=determinant if determinant.instance_of? Query # TODO: Not sure why these are busted out
+        @rules[determinant.name.to_sym]=determinant if determinant.instance_of? Rule
+        @state = STATE_LIVE if @state == STATE_DEAD
       end
 
       # this factors the difference between fact and factlist
       def get_factoid(name)
-          factoid=get_fact(name)
-          return factoid unless factoid.nil?
-          factoid=Fact.new(name) if Fact.is_atomic?(name)
-          factoid=FactList.new(name) unless Fact.is_atomic?(name)
-          add_fact(factoid)
-          factoid
+        factoid=get_fact(name)
+        return factoid unless factoid.nil?
+        factoid=Fact.new(name) if Fact.is_atomic?(name)
+        factoid=FactList.new(name) unless Fact.is_atomic?(name)
+        add_fact(factoid)
+        factoid
+      end
+
+      def prompt_response
+        @prompt_response
       end
 
       def prompt_response=(value)
@@ -90,6 +100,7 @@ module Backfire
         raise BackfireException, "ERROR: Received input when no prompt active." if self.current_query.nil?
         self.current_query.fact.value = value
         @state = STATE_LIVE
+        @prompt_response = nil
         self.current_query = nil
       end
 
@@ -123,12 +134,12 @@ module Backfire
 #      end
 
 
- # we stitch facts and expressions together when expressions are introduced into the workspace
+# we stitch facts and expressions together when expressions are introduced into the workspace
       def gen_facts_from_expression(expression)
-          expression.facts.each do |fact|
-            fact_instance = get_factoid(fact)
-            fact_instance.add_expression(expression)
-          end
+        expression.facts.each do |fact|
+          fact_instance = get_factoid(fact)
+          fact_instance.add_expression(expression)
+        end
       end
 
       def add_query(*queries)
@@ -148,7 +159,7 @@ module Backfire
 
       def why(fact)
         puts ""
-        puts"WHY backtrace for #{fact} = #{@facts[fact.to_sym].value}  : "
+        puts "WHY backtrace for #{fact} = #{@facts[fact.to_sym].value}  : "
         self.facts[fact.to_sym].determinants.each do |det|
           det.why(1)
         end
@@ -159,9 +170,9 @@ module Backfire
         output = []
         puts ""
         puts "Workspace Dump :"
-        @determinants.each_value {|v| output.concat v.dump(1)}
-        @facts.each_value {|v| output.concat v.dump }
-        @factlists.each_value {|v| output.concat v.dump }
+        @determinants.each_value { |v| output.concat v.dump(1) }
+        @facts.each_value { |v| output.concat v.dump }
+        @factlists.each_value { |v| output.concat v.dump }
         puts ""
         return output
       end
