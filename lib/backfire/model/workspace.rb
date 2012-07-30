@@ -66,7 +66,8 @@ module Backfire
       end
 
       def get_fact(name)
-        return @facts[name.to_sym]
+        return @facts[name.to_sym] unless name.nil?
+        nil
       end
 
       # @param [Determinant] determinant
@@ -118,6 +119,13 @@ module Backfire
       def scrub_fact_value(value)
         return value.value if value.instance_of? Fact
         value
+      end
+
+      def goal_result
+        return nil if @goal_fact.nil?
+        result = facts[@goal_fact.to_sym]
+        return result.value if result.is_atomic?
+        return result.fact_values if result.is_list?
       end
 
 #      def create_dynamic_fact(value, determinant)

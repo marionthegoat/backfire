@@ -13,10 +13,11 @@ describe BackfireEngine do
     c1 = ControlParam.new "rulebase_parameters"
     w1 = Workspace.new(c1)
     w1.add_query(Query.new("when_will_world_end","2012", "end_of_world"))
-    goal = w1.engine.solve("end_of_world")
+    goal = w1.solve("end_of_world")
     goal.wont_be_nil
     goal.must_be_instance_of Fact
     goal.value.must_equal 2012
+    w1.goal_result.must_equal 2012
   end
 
   it "chains rules and queries to determine goal facts" do

@@ -25,6 +25,7 @@ describe Workspace do
     w1.must_respond_to :is_dead?
     w1.must_respond_to :is_live?
     w1.must_respond_to :is_awaiting_input?
+    w1.must_respond_to :goal_result
   end
 
   it "accepts control parameters in constructor" do
